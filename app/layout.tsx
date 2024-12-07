@@ -1,7 +1,8 @@
-import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { Toaster } from "@/components/ui/toaster"
+import { Metadata } from 'next'
+import { Providers } from '@/components/providers'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -11,6 +12,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Kleurplaat Generator',
   description: 'Genereer unieke kleurplaten met AI',
+  viewport: 'width=device-width, initial-scale=1',
 }
 
 export default function RootLayout({
@@ -21,8 +23,11 @@ export default function RootLayout({
   return (
     <html lang="nl">
       <body className={inter.className}>
-        {children}
-        <Toaster />
+        <ErrorBoundary>
+          <Providers>
+            {children}
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   )

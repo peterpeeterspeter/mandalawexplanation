@@ -1,335 +1,420 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import * as z from 'zod'
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from '@/components/ui/use-toast'
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+import { Button } from "@/components/ui/button"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
+import { formSchema } from "@/lib/schemas"
+import { generatePrompt } from "@/lib/prompt-helpers"
+import { useState } from "react"
+import Image from "next/image"
 
-const formSchema = z.object({
-  mood: z.enum(['calm', 'stressed', 'happy', 'melancholic', 'focused'], {
-    required_error: "Selecteer je huidige gemoedstoestand",
-  }),
-  energy: z.enum(['high', 'balanced', 'low', 'restless'], {
-    required_error: "Selecteer je energieniveau",
-  }),
-  focus: z.enum(['relaxation', 'meditation', 'creativity', 'focus', 'healing'], {
-    required_error: "Selecteer waar je je op wilt focussen",
-  }),
-  colors: z.enum(['earth', 'water', 'fire', 'air', 'mixed'], {
-    required_error: "Selecteer je kleurvoorkeur",
-  }),
-  complexity: z.enum(['simple', 'balanced', 'detailed'], {
-    required_error: "Selecteer het detailniveau",
-  }),
-})
+type Emotion = "joy" | "peace" | "excitement" | "contemplation" | "transformation" | "healing"
+type Symbol = "natural" | "geometric" | "abstract" | "sacred"
 
 export function GenerateForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      mood: '',
-      energy: '',
-      focus: '',
-      colors: '',
-      complexity: 'balanced',
-    },
+      emotions: [] as Emotion[],
+      emotionalIntensity: 5,
+      emotionalQuality: undefined,
+      energyLevel: undefined,
+      bodyTension: undefined,
+      thoughtPattern: undefined,
+      detailLevel: undefined,
+      symbols: [] as Symbol[],
+      spiritualIntention: undefined,
+      naturalElement: undefined,
+      timeOfDay: undefined
+    }
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     setGeneratedImage(null)
+    setError(null)
 
     try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const { prompt, negativePrompt } = generatePrompt(values)
+      console.log('Sending request with:', { prompt, negativePrompt })
+      
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          prompt: '',  // Base prompt is empty, we'll use the preferences
-          mood: values.mood,
-          energy: values.energy,
-          focus: values.focus,
-          colors: values.colors,
-          complexity: values.complexity,
+          prompt,
+          negativePrompt
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Generation failed')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to generate mandala")
       }
 
       const data = await response.json()
+      if (!data.imageUrl) {
+        throw new Error("No image URL in response")
+      }
+      
       setGeneratedImage(data.imageUrl)
-      toast({
-        title: 'Je persoonlijke mandala is gegenereerd!',
-        description: 'Je kunt de mandala nu downloaden en inkleuren.',
-      })
-    } catch (error) {
-      console.error('Generation error:', error)
-      toast({
-        title: 'Er ging iets mis',
-        description: 'Kon geen mandala genereren. Probeer het opnieuw.',
-        variant: 'destructive',
-      })
+    } catch (err) {
+      console.error('Form submission error:', err)
+      setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h2 className="text-2xl font-bold">Persoonlijke Mandala Generator</h2>
-        <p className="text-gray-600">
-          Beantwoord deze vragen om een mandala te creëren die perfect bij jouw mindset past.
-        </p>
-      </div>
-
+    <div className="max-w-2xl mx-auto p-4">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <FormField
-            control={form.control}
-            name="mood"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Hoe voel je je op dit moment?</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
+          {/* Emotional Center */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Emotional Center</h2>
+            
+            <FormField
+              control={form.control}
+              name="emotions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Present Emotions (Choose up to 3)</FormLabel>
+                  <Select
+                    onValueChange={(value: Emotion) => {
+                      const currentEmotions = field.value || []
+                      if (currentEmotions.length < 3 && !currentEmotions.includes(value)) {
+                        field.onChange([...currentEmotions, value])
+                      }
+                    }}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecteer je gemoedstoestand" />
+                      <SelectValue placeholder="Select emotions" />
                     </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="calm">Kalm en vredig</SelectItem>
-                    <SelectItem value="stressed">Gestrest of onrustig</SelectItem>
-                    <SelectItem value="happy">Blij en optimistisch</SelectItem>
-                    <SelectItem value="melancholic">Melancholisch</SelectItem>
-                    <SelectItem value="focused">Geconcentreerd</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Je huidige gemoedstoestand helpt bij het creëren van een passende mandala.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    <SelectContent>
+                      {['joy', 'peace', 'excitement', 'contemplation', 'transformation', 'healing'].map((emotion) => (
+                        <SelectItem key={emotion} value={emotion}>
+                          {emotion.charAt(0).toUpperCase() + emotion.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Selected: {field.value?.join(", ") || "None"}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="energy"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Wat is je energieniveau?</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <FormField
+              control={form.control}
+              name="emotionalIntensity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Emotional Intensity (1-10)</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecteer je energieniveau" />
-                    </SelectTrigger>
+                    <Slider
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={[field.value]}
+                      onValueChange={(value) => field.onChange(value[0])}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="high">Veel energie</SelectItem>
-                    <SelectItem value="balanced">In balans</SelectItem>
-                    <SelectItem value="low">Weinig energie</SelectItem>
-                    <SelectItem value="restless">Rusteloos</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Dit helpt bij het bepalen van de dynamiek in je mandala.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormDescription>Current value: {field.value}</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="focus"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Waar wil je je op focussen tijdens het kleuren?</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
+            <FormField
+              control={form.control}
+              name="emotionalQuality"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Emotional Quality to Enhance</FormLabel>
+                  <Select onValueChange={field.onChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecteer je focus" />
+                      <SelectValue placeholder="Select quality" />
                     </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="relaxation">Ontspanning</SelectItem>
-                    <SelectItem value="meditation">Meditatie</SelectItem>
-                    <SelectItem value="creativity">Creativiteit</SelectItem>
-                    <SelectItem value="focus">Concentratie</SelectItem>
-                    <SelectItem value="healing">Innerlijke healing</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Dit bepaalt het thema en de intentie van je mandala.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    <SelectContent>
+                      {['balance', 'growth', 'release', 'protection', 'grounding', 'expansion'].map((quality) => (
+                        <SelectItem key={quality} value={quality}>
+                          {quality.charAt(0).toUpperCase() + quality.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
-          <FormField
-            control={form.control}
-            name="colors"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Welke kleuren spreken je aan?</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
+          {/* Physical Well-being */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Physical Well-being</h2>
+            
+            <FormField
+              control={form.control}
+              name="energyLevel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Energy Level</FormLabel>
+                  <Select onValueChange={field.onChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecteer je kleurvoorkeur" />
+                      <SelectValue placeholder="Select energy level" />
                     </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="earth">Aardse tinten (bruin, groen)</SelectItem>
-                    <SelectItem value="water">Water tinten (blauw, turquoise)</SelectItem>
-                    <SelectItem value="fire">Vurige tinten (rood, oranje)</SelectItem>
-                    <SelectItem value="air">Luchtige tinten (wit, lichtblauw)</SelectItem>
-                    <SelectItem value="mixed">Gemengde kleuren</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  De kleurthema's zullen de energie van je mandala beïnvloeden.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    <SelectContent>
+                      {['low', 'medium', 'high'].map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level.charAt(0).toUpperCase() + level.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="complexity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Hoeveel detail wil je in je mandala?</FormLabel>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="flex flex-col space-y-1"
-                >
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="simple" />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      Eenvoudig - Grote, rustige patronen
-                    </FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="balanced" />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      Gebalanceerd - Mix van grote en kleine elementen
-                    </FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="detailed" />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      Gedetailleerd - Complexe, intricate patronen
-                    </FormLabel>
-                  </FormItem>
-                </RadioGroup>
-                <FormDescription>
-                  Dit bepaalt hoe complex en gedetailleerd je mandala wordt.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="bodyTension"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Body Tension Area</FormLabel>
+                  <Select onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select tension area" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['center', 'upper', 'lower'].map((area) => (
+                        <SelectItem key={area} value={area}>
+                          {area.charAt(0).toUpperCase() + area.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading ? 'Mandala wordt gegenereerd...' : 'Genereer Mijn Mandala'}
+          {/* Mental State */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Mental State</h2>
+            
+            <FormField
+              control={form.control}
+              name="thoughtPattern"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Thought Pattern</FormLabel>
+                  <Select onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select thought pattern" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['analytical', 'creative', 'reflective', 'scattered'].map((pattern) => (
+                        <SelectItem key={pattern} value={pattern}>
+                          {pattern.charAt(0).toUpperCase() + pattern.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="detailLevel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Detail Level</FormLabel>
+                  <Select onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select detail level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['simple', 'moderate', 'complex'].map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level.charAt(0).toUpperCase() + level.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* Spiritual Connection */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Spiritual Connection</h2>
+            
+            <FormField
+              control={form.control}
+              name="symbols"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spiritual Symbols</FormLabel>
+                  <Select
+                    onValueChange={(value: Symbol) => {
+                      const currentSymbols = field.value || []
+                      if (!currentSymbols.includes(value)) {
+                        field.onChange([...currentSymbols, value])
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select symbols" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['natural', 'geometric', 'abstract', 'sacred'].map((symbol) => (
+                        <SelectItem key={symbol} value={symbol}>
+                          {symbol.charAt(0).toUpperCase() + symbol.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Selected: {field.value?.join(", ") || "None"}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="spiritualIntention"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spiritual Intention</FormLabel>
+                  <Select onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select intention" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['inner_peace', 'personal_growth', 'healing', 'connection', 'protection', 'wisdom'].map((intention) => (
+                        <SelectItem key={intention} value={intention}>
+                          {intention.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* Environmental Influence */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Environmental Influence</h2>
+            
+            <FormField
+              control={form.control}
+              name="naturalElement"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Natural Element</FormLabel>
+                  <Select onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select element" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['water', 'earth', 'air', 'fire'].map((element) => (
+                        <SelectItem key={element} value={element}>
+                          {element.charAt(0).toUpperCase() + element.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="timeOfDay"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Time of Day</FormLabel>
+                  <Select onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['dawn', 'noon', 'dusk', 'night'].map((time) => (
+                        <SelectItem key={time} value={time}>
+                          {time.charAt(0).toUpperCase() + time.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Generating..." : "Generate Mandala"}
           </Button>
         </form>
       </Form>
 
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 text-red-500 rounded">
+          {error}
+        </div>
+      )}
+
       {generatedImage && (
-        <div className="mt-8 space-y-4">
-          <img
-            src={generatedImage}
-            alt="Generated mandala"
-            className="w-full h-auto rounded-lg shadow-lg"
-          />
-          <div className="flex justify-center gap-4">
-            <Button
-              onClick={() => window.open(generatedImage, '_blank')}
-              className="w-full"
-            >
-              Download Mandala
-            </Button>
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-4">Your Generated Mandala</h3>
+          <div className="relative aspect-square w-full max-w-xl mx-auto">
+            <Image
+              src={generatedImage}
+              alt="Generated Mandala"
+              fill
+              className="object-contain"
+            />
           </div>
         </div>
       )}
     </div>
   )
-}
-
-function constructMandalaPrompt(values: any) {
-  const basePrompt = "Create a beautiful mandala with "
-  
-  // Add mood-specific elements
-  const moodElements = {
-    calm: "peaceful and harmonious elements",
-    stressed: "grounding and stabilizing patterns",
-    happy: "joyful and uplifting designs",
-    melancholic: "soothing and gentle patterns",
-    focused: "clear and structured elements"
-  }
-
-  // Add energy-specific elements
-  const energyElements = {
-    high: "dynamic and vibrant flow",
-    balanced: "perfect balance and harmony",
-    low: "gentle and calming energy",
-    restless: "organized and rhythmic patterns"
-  }
-
-  // Add focus-specific elements
-  const focusElements = {
-    relaxation: "relaxing circular patterns",
-    meditation: "spiritual and mystical symbols",
-    creativity: "creative and imaginative designs",
-    focus: "concentric and focused patterns",
-    healing: "healing symbols and natural elements"
-  }
-
-  // Add color-specific elements
-  const colorElements = {
-    earth: "earth-toned patterns and natural motifs",
-    water: "flowing water-like patterns",
-    fire: "dynamic fire-inspired elements",
-    air: "light and ethereal patterns",
-    mixed: "diverse and colorful elements"
-  }
-
-  // Add complexity-specific elements
-  const complexityElements = {
-    simple: "with clean, simple lines and large patterns",
-    balanced: "with balanced detail and medium-sized elements",
-    detailed: "with intricate details and complex patterns"
-  }
-
-  // Construct the final prompt
-  const prompt = `${basePrompt} 
-    ${moodElements[values.mood as keyof typeof moodElements] || ''}, 
-    ${energyElements[values.energy as keyof typeof energyElements] || ''}, 
-    ${focusElements[values.focus as keyof typeof focusElements] || ''}, 
-    ${colorElements[values.colors as keyof typeof colorElements] || ''} 
-    ${complexityElements[values.complexity as keyof typeof complexityElements] || ''}.
-    Make it a beautiful black and white mandala suitable for coloring, with clear lines and perfect symmetry.`
-
-  return prompt
 }

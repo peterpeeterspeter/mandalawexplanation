@@ -2,7 +2,7 @@ import { GenerateForm } from '@/components/generate-form'
 
 export default function Page() {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <main className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-4xl font-bold text-center mb-8">Kleurplaat Generator</h1>
         <p className="text-gray-600 text-center mb-8">
@@ -11,6 +11,6 @@ export default function Page() {
         </p>
         <GenerateForm />
       </div>
-    </div>
+    </main>
   )
 }
