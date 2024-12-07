@@ -25,6 +25,8 @@ import { formSchema } from "@/lib/schemas"
 import { generatePrompt } from "@/lib/prompt-helpers"
 import { useState } from "react"
 import Image from "next/image"
+import { MandalaInterpretation } from './mandala-interpretation'
+import { Loader2 } from "lucide-react"
 
 type Emotion = "joy" | "peace" | "excitement" | "contemplation" | "transformation" | "healing"
 type Symbol = "natural" | "geometric" | "abstract" | "sacred"
@@ -33,6 +35,7 @@ export function GenerateForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [formValues, setFormValues] = useState<z.infer<typeof formSchema> | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,6 +58,7 @@ export function GenerateForm() {
     setIsLoading(true)
     setGeneratedImage(null)
     setError(null)
+    setFormValues(values)
 
     try {
       const { prompt, negativePrompt } = generatePrompt(values)
@@ -73,12 +77,16 @@ export function GenerateForm() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to generate mandala")
+        if (response.status === 429) {
+          // Rate limit error
+          throw new Error(errorData.error || "Too many requests. Try again later.")
+        }
+        throw new Error(errorData.error || "Error generating mandala")
       }
 
       const data = await response.json()
       if (!data.imageUrl) {
-        throw new Error("No image URL in response")
+        throw new Error("No image received from server")
       }
       
       setGeneratedImage(data.imageUrl)
@@ -91,7 +99,7 @@ export function GenerateForm() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
+    <div className="space-y-8">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {/* Emotional Center */}
@@ -103,29 +111,28 @@ export function GenerateForm() {
               name="emotions"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Present Emotions (Choose up to 3)</FormLabel>
-                  <Select
-                    onValueChange={(value: Emotion) => {
-                      const currentEmotions = field.value || []
-                      if (currentEmotions.length < 3 && !currentEmotions.includes(value)) {
-                        field.onChange([...currentEmotions, value])
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select emotions" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <FormLabel>Choose Your Emotions</FormLabel>
+                  <FormControl>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {['joy', 'peace', 'excitement', 'contemplation', 'transformation', 'healing'].map((emotion) => (
-                        <SelectItem key={emotion} value={emotion}>
-                          {emotion.charAt(0).toUpperCase() + emotion.slice(1)}
-                        </SelectItem>
+                        <Button
+                          key={emotion}
+                          type="button"
+                          variant={field.value?.includes(emotion as Emotion) ? 'default' : 'outline'}
+                          className="w-full capitalize"
+                          onClick={() => {
+                            const current = field.value || []
+                            const updated = current.includes(emotion as Emotion)
+                              ? current.filter(e => e !== emotion)
+                              : [...current, emotion as Emotion]
+                            field.onChange(updated)
+                          }}
+                        >
+                          {emotion}
+                        </Button>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Selected: {field.value?.join(", ") || "None"}
-                  </FormDescription>
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -136,91 +143,20 @@ export function GenerateForm() {
               name="emotionalIntensity"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Emotional Intensity (1-10)</FormLabel>
+                  <FormLabel>Emotional Intensity</FormLabel>
                   <FormControl>
                     <Slider
                       min={1}
                       max={10}
                       step={1}
                       value={[field.value]}
-                      onValueChange={(value) => field.onChange(value[0])}
+                      onValueChange={([value]) => field.onChange(value)}
+                      className="w-full"
                     />
                   </FormControl>
-                  <FormDescription>Current value: {field.value}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="emotionalQuality"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Emotional Quality to Enhance</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select quality" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {['balance', 'growth', 'release', 'protection', 'grounding', 'expansion'].map((quality) => (
-                        <SelectItem key={quality} value={quality}>
-                          {quality.charAt(0).toUpperCase() + quality.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Physical Well-being */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Physical Well-being</h2>
-            
-            <FormField
-              control={form.control}
-              name="energyLevel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Energy Level</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select energy level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {['low', 'medium', 'high'].map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level.charAt(0).toUpperCase() + level.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="bodyTension"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Body Tension Area</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select tension area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {['center', 'upper', 'lower'].map((area) => (
-                        <SelectItem key={area} value={area}>
-                          {area.charAt(0).toUpperCase() + area.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormDescription>
+                    Set the intensity of your emotions from 1 (subtle) to 10 (intense)
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -236,40 +172,18 @@ export function GenerateForm() {
               name="thoughtPattern"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Thought Pattern</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select thought pattern" />
-                    </SelectTrigger>
+                  <FormLabel>Current Thought Pattern</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your thought pattern" />
+                      </SelectTrigger>
+                    </FormControl>
                     <SelectContent>
-                      {['analytical', 'creative', 'reflective', 'scattered'].map((pattern) => (
-                        <SelectItem key={pattern} value={pattern}>
-                          {pattern.charAt(0).toUpperCase() + pattern.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="detailLevel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Detail Level</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select detail level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {['simple', 'moderate', 'complex'].map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level.charAt(0).toUpperCase() + level.slice(1)}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="analytical">Analytical</SelectItem>
+                      <SelectItem value="creative">Creative</SelectItem>
+                      <SelectItem value="reflective">Reflective</SelectItem>
+                      <SelectItem value="scattered">Scattered</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -278,38 +192,37 @@ export function GenerateForm() {
             />
           </div>
 
-          {/* Spiritual Connection */}
+          {/* Spiritual Elements */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Spiritual Connection</h2>
+            <h2 className="text-lg font-semibold">Spiritual Elements</h2>
             
             <FormField
               control={form.control}
               name="symbols"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Spiritual Symbols</FormLabel>
-                  <Select
-                    onValueChange={(value: Symbol) => {
-                      const currentSymbols = field.value || []
-                      if (!currentSymbols.includes(value)) {
-                        field.onChange([...currentSymbols, value])
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select symbols" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <FormLabel>Choose Symbols</FormLabel>
+                  <FormControl>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {['natural', 'geometric', 'abstract', 'sacred'].map((symbol) => (
-                        <SelectItem key={symbol} value={symbol}>
-                          {symbol.charAt(0).toUpperCase() + symbol.slice(1)}
-                        </SelectItem>
+                        <Button
+                          key={symbol}
+                          type="button"
+                          variant={field.value?.includes(symbol as Symbol) ? 'default' : 'outline'}
+                          className="w-full capitalize"
+                          onClick={() => {
+                            const current = field.value || []
+                            const updated = current.includes(symbol as Symbol)
+                              ? current.filter(s => s !== symbol)
+                              : [...current, symbol as Symbol]
+                            field.onChange(updated)
+                          }}
+                        >
+                          {symbol}
+                        </Button>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Selected: {field.value?.join(", ") || "None"}
-                  </FormDescription>
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -321,16 +234,19 @@ export function GenerateForm() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Spiritual Intention</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select intention" />
-                    </SelectTrigger>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your intention" />
+                      </SelectTrigger>
+                    </FormControl>
                     <SelectContent>
-                      {['inner_peace', 'personal_growth', 'healing', 'connection', 'protection', 'wisdom'].map((intention) => (
-                        <SelectItem key={intention} value={intention}>
-                          {intention.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="inner_peace">Inner Peace</SelectItem>
+                      <SelectItem value="personal_growth">Personal Growth</SelectItem>
+                      <SelectItem value="healing">Healing</SelectItem>
+                      <SelectItem value="connection">Connection</SelectItem>
+                      <SelectItem value="protection">Protection</SelectItem>
+                      <SelectItem value="wisdom">Wisdom</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -339,49 +255,56 @@ export function GenerateForm() {
             />
           </div>
 
-          {/* Environmental Influence */}
+          {/* Natural Elements */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Environmental Influence</h2>
+            <h2 className="text-lg font-semibold">Natural Elements</h2>
             
             <FormField
               control={form.control}
               name="naturalElement"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Natural Element</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select element" />
-                    </SelectTrigger>
+                  <FormLabel>Choose Element</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an element" />
+                      </SelectTrigger>
+                    </FormControl>
                     <SelectContent>
-                      {['water', 'earth', 'air', 'fire'].map((element) => (
-                        <SelectItem key={element} value={element}>
-                          {element.charAt(0).toUpperCase() + element.slice(1)}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="water">Water</SelectItem>
+                      <SelectItem value="earth">Earth</SelectItem>
+                      <SelectItem value="air">Air</SelectItem>
+                      <SelectItem value="fire">Fire</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+          </div>
 
+          {/* Time of Day */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Time of Day</h2>
+            
             <FormField
               control={form.control}
               name="timeOfDay"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Time of Day</FormLabel>
-                  <Select onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select time" />
-                    </SelectTrigger>
+                  <FormLabel>Choose Time</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select time of day" />
+                      </SelectTrigger>
+                    </FormControl>
                     <SelectContent>
-                      {['dawn', 'noon', 'dusk', 'night'].map((time) => (
-                        <SelectItem key={time} value={time}>
-                          {time.charAt(0).toUpperCase() + time.slice(1)}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="dawn">Dawn</SelectItem>
+                      <SelectItem value="noon">Noon</SelectItem>
+                      <SelectItem value="dusk">Dusk</SelectItem>
+                      <SelectItem value="night">Night</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -390,29 +313,71 @@ export function GenerateForm() {
             />
           </div>
 
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Generating..." : "Generate Mandala"}
+          {/* Detail Level */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Detail Level</h2>
+            
+            <FormField
+              control={form.control}
+              name="detailLevel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Choose Detail Level</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select detail level" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="simple">Simple</SelectItem>
+                      <SelectItem value="moderate">Moderate</SelectItem>
+                      <SelectItem value="complex">Complex</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Mandala'
+            )}
           </Button>
         </form>
       </Form>
 
       {error && (
-        <div className="mt-4 p-4 bg-red-50 text-red-500 rounded">
+        <div className="p-4 text-red-600 bg-red-50 rounded-md">
           {error}
         </div>
       )}
 
+      {isLoading && (
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      )}
+
       {generatedImage && (
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold mb-4">Your Generated Mandala</h3>
-          <div className="relative aspect-square w-full max-w-xl mx-auto">
+        <div className="space-y-8">
+          <div className="relative aspect-square rounded-lg overflow-hidden shadow-xl">
             <Image
               src={generatedImage}
-              alt="Generated Mandala"
+              alt="Generated mandala"
               fill
               className="object-contain"
             />
           </div>
+          
+          {formValues && <MandalaInterpretation values={formValues} />}
         </div>
       )}
     </div>

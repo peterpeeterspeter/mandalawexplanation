@@ -1,99 +1,54 @@
-# KleurplaatAI - AI Mandala Kleurplaat Generator
+# Mandala Generator with Explanation
 
-Een Next.js applicatie die AI gebruikt om gepersonaliseerde mandala kleurplaten te genereren.
+An AI-powered application that generates personalized mandala coloring pages with meaningful interpretations based on your emotions, intentions, and spiritual preferences.
 
-## 🎨 Functionaliteiten
+## Features
 
-- Gepersonaliseerde mandala generatie op basis van voorkeuren
-- Uitgebreide vragenlijst voor aanpassing
-- Download mogelijkheid voor gegenereerde kleurplaten
-- Responsive design voor alle apparaten
-- Nederlandse interface
+- Generate unique mandala designs based on personal input
+- Emotional and spiritual interpretation of the mandala
+- Customizable detail levels and styles
+- Mobile-responsive design
+- Clean, modern user interface
 
-## 🛠 Technische Stack
+## Technical Stack
 
 - Next.js 14
-- React
 - TypeScript
 - Tailwind CSS
-- Zod voor validatie
-- Replicate API (Stability AI SDXL)
+- React Hook Form
+- Zod Validation
+- Replicate AI Integration
 
-## 🚀 Aan de slag
+## Getting Started
 
-1. Clone de repository
-2. Installeer dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Maak een `.env.local` bestand met:
-   ```
-   REPLICATE_API_TOKEN=jouw_replicate_api_token
-   ```
-
-4. Start de development server:
-   ```bash
-   npm run dev
-   ```
-
-5. Open [http://localhost:3000](http://localhost:3000)
-
-## 📝 Omgevingsvariabelen
-
-- `REPLICATE_API_TOKEN`: Token voor de Replicate API (verplicht)
-
-## 🌟 Features
-
-- Personalisatie opties:
-  - Doel (stress reductie, focus verbetering, etc.)
-  - Complexiteit
-  - Basisvorm
-  - Thematische elementen
-  - Emotionele staat
-  - Persoonlijke elementen
-
-- AI Beeldgeneratie:
-  - Zwart-wit mandala's
-  - Hoge resolutie output
-  - Geoptimaliseerd voor printen
-
-## 📦 Project Structuur
-
-```
-kleurplaat-generator/
-├── app/
-│   ├── api/
-│   │   └── generate/
-│   │       └── route.ts
-│   ├── components/
-│   │   └── MandalaQuestionnaire.tsx
-│   ├── result/
-│   │   └── page.tsx
-│   ├── page.tsx
-│   ├── layout.tsx
-│   └── globals.css
-├── components/
-│   └── ui/
-├── lib/
-│   └── utils.ts
-├── public/
-├── .env.local
-├── next.config.js
-├── package.json
-├── tailwind.config.js
-└── tsconfig.json
+1. Clone the repository
+2. Install dependencies:
+```bash
+npm install
 ```
 
-## 🤝 Bijdragen
+3. Create a `.env` file with your Replicate API token:
+```
+REPLICATE_API_TOKEN=your_token_here
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_APP_NAME="Coloring Art Generator"
+```
 
-Voel je vrij om bij te dragen aan dit project door:
-1. Een fork te maken
-2. Je feature branch te maken (`git checkout -b feature/AmazingFeature`)
-3. Je wijzigingen te committen (`git commit -m 'Add some AmazingFeature'`)
-4. Te pushen naar de branch (`git push origin feature/AmazingFeature`)
-5. Een Pull Request te openen
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## 📄 Licentie
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-Dit project is gelicenseerd onder de ISC License.
+## Usage
+
+1. Input your emotional state and spiritual intentions
+2. Adjust the intensity and detail levels
+3. Click "Generate Mandala"
+4. Receive your personalized mandala with interpretation
+5. Download or print your mandala
+
+## License
+
+ 2024 Coloring Art AI. All rights reserved.

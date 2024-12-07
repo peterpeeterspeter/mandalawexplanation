@@ -1,21 +1,13 @@
-const requiredEnvVars = ['REPLICATE_API_TOKEN'] as const
+import { z } from 'zod'
 
-export function validateEnv() {
-  const missingVars = requiredEnvVars.filter(
-    (envVar) => !process.env[envVar]
-  )
+const envSchema = z.object({
+  REPLICATE_API_TOKEN: z.string().min(1, "Replicate API token is required"),
+  NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_APP_NAME: z.string().default("Coloring Book AI Mandala Generator")
+})
 
-  if (missingVars.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missingVars.join(', ')}`
-    )
-  }
-}
-
-export function getEnvVar(name: typeof requiredEnvVars[number]): string {
-  const value = process.env[name]
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`)
-  }
-  return value
-}
+export const env = envSchema.parse({
+  REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN,
+  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME
+})

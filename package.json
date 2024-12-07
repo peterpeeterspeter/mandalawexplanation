@@ -1,5 +1,5 @@
 {
-  "name": "kleurplaat-generator",
+  "name": "mandala-generator-with-explanation",
   "version": "1.0.0",
   "description": "AI-powered coloring page generator",
   "main": "index.js",

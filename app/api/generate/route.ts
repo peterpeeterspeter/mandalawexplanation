@@ -9,6 +9,32 @@ const replicate = new Replicate({
   auth: getEnvVar('REPLICATE_API_TOKEN'),
 })
 
+// Simple rate limiting
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour
+const MAX_REQUESTS_PER_WINDOW = 10
+const requestLog: { timestamp: number }[] = []
+
+function isRateLimited(): boolean {
+  const now = Date.now()
+  // Remove old requests
+  const windowStart = now - RATE_LIMIT_WINDOW
+  const recentRequests = requestLog.filter(req => req.timestamp > windowStart)
+  requestLog.length = 0
+  requestLog.push(...recentRequests)
+  
+  // Check if we're over the limit
+  if (recentRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+    const oldestRequest = recentRequests[0]
+    const timeUntilReset = (oldestRequest.timestamp + RATE_LIMIT_WINDOW) - now
+    const minutesUntilReset = Math.ceil(timeUntilReset / (60 * 1000))
+    throw new Error(`Rate limit exceeded. Please try again in ${minutesUntilReset} minutes.`)
+  }
+  
+  // Add new request
+  requestLog.push({ timestamp: now })
+  return false
+}
+
 export async function POST(request: Request) {
   try {
     console.log('Received request to generate mandala')
@@ -22,6 +48,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Missing prompt' },
         { status: 400 }
+      )
+    }
+
+    // Check rate limit
+    try {
+      isRateLimited()
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 429 }
       )
     }
 
@@ -62,6 +98,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ imageUrl: output[0] })
     } catch (replicateError: any) {
       console.error('Replicate API error:', replicateError)
+      
+      // Handle rate limit errors specifically
+      if (replicateError.message?.toLowerCase().includes('rate limit')) {
+        return NextResponse.json(
+          { error: 'Rate limit exceeded. Please try again in about an hour.' },
+          { status: 429 }
+        )
+      }
+      
       return NextResponse.json(
         { error: replicateError?.message || 'Failed to generate mandala - API error' },
         { status: 500 }

@@ -69,78 +69,78 @@ const complexityLevels = {
   complex: 'intricate and detailed'
 } as const
 
-export function generatePrompt(formData: FormData) {
-  const {
-    emotions = [],
-    emotionalIntensity = 5,
-    emotionalQuality,
-    energyLevel,
-    bodyTension,
-    thoughtPattern,
-    detailLevel = 'moderate',
-    symbols = ['geometric'],
-    spiritualIntention,
-    naturalElement,
-    timeOfDay
-  } = formData
+export function generatePrompt(formData: FormData): { prompt: string, negativePrompt: string } {
+  const basePrompt = "A beautiful, symmetrical mandala coloring page design"
+  const artStyle = "black and white line art, coloring book style, clean lines"
+  const familyFriendly = "suitable for all ages, family-friendly, wholesome"
+  const technicalDetails = "high contrast, clear outlines, printable quality"
 
-  // Build the base prompt parts
-  const parts = []
+  const emotionWords = formData.emotions.map(emotion => {
+    switch (emotion) {
+      case 'joy': return 'joyful, uplifting'
+      case 'peace': return 'peaceful, serene'
+      case 'excitement': return 'dynamic, energetic'
+      case 'contemplation': return 'contemplative, meditative'
+      case 'transformation': return 'transformative, flowing'
+      case 'healing': return 'harmonious, balanced'
+      default: return emotion
+    }
+  }).join(', ')
 
-  // Core mandala description
-  parts.push(`Create a ${complexityLevels[detailLevel]} mandala design with clean, black line art suitable for a coloring book`)
+  const symbolElements = formData.symbols.map(symbol => {
+    switch (symbol) {
+      case 'natural': return 'organic patterns, leaves, flowers'
+      case 'geometric': return 'sacred geometry, circles, triangles'
+      case 'abstract': return 'flowing patterns, abstract shapes'
+      case 'sacred': return 'spiritual symbols, lotus flowers'
+      default: return symbol
+    }
+  }).join(', ')
 
-  // Add emotional elements if specified
-  if (emotions.length > 0) {
-    const colorChoices = emotions
-      .map(emotion => emotionColors[emotion as keyof typeof emotionColors])
-      .filter(Boolean)
-      .join(' with ')
-    parts.push(`The design should be inspired by ${emotions.join(', ')} emotions`)
-  }
+  const elementDescription = formData.naturalElement ? {
+    water: 'flowing water patterns, waves',
+    earth: 'earthy patterns, crystals, mountains',
+    air: 'wind patterns, clouds, swirls',
+    fire: 'flame patterns, radiant energy'
+  }[formData.naturalElement] : ''
 
-  // Add optional elements if specified
-  if (energyLevel) parts.push(`with ${energyPatterns[energyLevel]} patterns`)
-  if (thoughtPattern) parts.push(`incorporating ${thoughtPatternDetails[thoughtPattern]} arrangements`)
-  if (naturalElement) parts.push(`featuring ${naturalElementPatterns[naturalElement]} elements`)
-  if (bodyTension) parts.push(`emphasizing the ${bodyTension} area through pattern density`)
-  if (spiritualIntention) parts.push(`including ${intentionSymbols[spiritualIntention]}`)
-  if (timeOfDay) parts.push(`with a ${timeQualities[timeOfDay]} quality`)
-  if (emotionalQuality) parts.push(`enhancing ${emotionalQuality} through its structure`)
+  const timeDescription = formData.timeOfDay ? {
+    dawn: 'morning energy, rising sun patterns',
+    noon: 'radiant patterns, full bloom designs',
+    dusk: 'gentle evening patterns, setting sun motifs',
+    night: 'star patterns, moon motifs'
+  }[formData.timeOfDay] : ''
 
-  // Add symbol specifications
-  parts.push(`incorporating ${symbols.map(s => symbolPatterns[s]).join(' and ')}`)
+  const detailLevel = formData.detailLevel ? {
+    simple: 'simple and elegant patterns',
+    moderate: 'balanced level of detail',
+    complex: 'intricate patterns'
+  }[formData.detailLevel] : 'balanced level of detail'
 
-  // Build the final prompt with specific requirements for line art
-  const prompt = `${parts.join(', ')}. Make it perfectly symmetrical with clear, crisp black lines on white background, ideal for a coloring book. The design should be completely uncolored with precise outlines and intricate details for coloring. Style: clean line art, black and white illustration, coloring book page.`
+  const prompt = [
+    basePrompt,
+    artStyle,
+    familyFriendly,
+    technicalDetails,
+    emotionWords,
+    symbolElements,
+    elementDescription,
+    timeDescription,
+    detailLevel
+  ].filter(Boolean).join(', ')
 
-  // Enhanced negative prompt for line art
   const negativePrompt = [
-    "color",
-    "shading",
-    "gradient",
-    "watercolor",
-    "painting",
-    "photorealistic",
-    "3D",
-    "blurry",
-    "low quality",
-    "distorted",
-    "broken symmetry",
-    "text",
-    "watermark",
-    "signature",
-    "asymmetrical",
-    "messy lines",
-    "filled areas",
-    "colored regions",
-    "grayscale",
-    "shadows",
-    "depth",
-    "texture",
-    "background",
-    "noise"
-  ].join(", ")
+    "color, colored, painting",
+    "photorealistic, 3d, rendered",
+    "complex shading, gradients",
+    "inappropriate content, nsfw",
+    "dark themes, scary elements",
+    "text, words, letters",
+    "asymmetrical, unbalanced",
+    "photographs, realistic images",
+    "faces, figures, people",
+    "busy backgrounds, distracting elements"
+  ].join(', ')
 
   return {
     prompt,
